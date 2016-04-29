@@ -8,15 +8,23 @@ require 'inc/Completions.php';
 
 date_default_timezone_set( 'America/Montreal' );
 
-$db = new DB( __DIR__ . '/indexes/' . md5( realpath( $argv[2] ) ) . '.sqlite' );
-$indexer = new Indexer( realpath( $argv[2] ), $db );
+if ( count( $argv ) !== 3 ) {
+	echo "Usage: port path\n";
+	exit;
+}
 
-$server = new CapMousse\ReactRestify\Server( "PHP Autocomplete", "0.0.1" );
+$db = new DB( __DIR__ . '/indexes/' . md5( realpath( $argv[2] ) ) . '.sqlite' );
+$php_db = new DB( __DIR__ . '/indexes/php.sqlite' );
+
+$indexer = new Indexer( realpath( $argv[2] ), $db );
+$indexer_php = new Indexer( __DIR__ . '/phpstorm-stubs', $php_db );
+
+$server = new CapMousse\ReactRestify\Server( 'PHP Autocomplete', '0.0.1' );
 
 $server->get( '/index', function( $request, $response, $next ) use ( $indexer ) {
 	$response->write( json_encode( array(
 		'status'            => $indexer->status,
-		'last_indexed_file' => $indexer->last_indexed_file
+		'last_indexed_file' => $indexer->last_indexed_file,
 	) ) );
 	$next();
 });
@@ -38,6 +46,21 @@ $server->post( '/reindex', function( $request, $response, $next ) use ( $indexer
 		$indexer->delete_index();
 		$indexer->index();
 	}
+	echo "Indexing completed.\n";
+	$next();
+
+});
+
+$server->post( '/index-php', function( $request, $response, $next ) use ( $indexer_php ) {
+	$indexer_php->delete_index();
+	$indexer_php->index();
+	echo "Indexing Complete\n";
+	$next();
+});
+
+$server->post( '/updateindex', function( $request, $response, $next ) use ( $indexer ) {
+	echo "Updating reindex...\n";
+	$indexer->index();
 	echo "Indexing completed.\n";
 	$next();
 

@@ -21,6 +21,8 @@ class Indexer {
 	public function index() {
 		$this->status = 'indexing';
 		$path = realpath( $this->path );
+		var_dump($this->path);
+		var_dump( $path );
 
 		$objects = new RecursiveIteratorIterator( new RecursiveDirectoryIterator( $path ), RecursiveIteratorIterator::SELF_FIRST );
 		$objects = new RegexIterator( $objects, '/^.+\.php$/i', RecursiveRegexIterator::GET_MATCH );
@@ -33,15 +35,25 @@ class Indexer {
 
 	public function index_file( $file_path ) {
 		$this->last_indexed_file = $file_path;
+		$md5 = md5_file( $file_path );
+
+		$previous_index = $this->db->get_file( $file_path );
+
+		if ( $previous_index && $previous_index['hash'] === $hash ) {
+			echo "Already up to date\n";
+			return;
+		}
+
 		try {
 			$stmts = $this->parser->parse( file_get_contents( $file_path ) );
-		} catch( \Exception $e ) {
-			echo "parse error for file " . $file_path;
+		} catch ( \Exception $e ) {
+			echo 'parse error for file ' . $file_path;
 			return;
 		}
 
 		$this->db->_current_file = $file_path;
 		$this->traverser->traverse( $stmts );
+		$this->db->store_file( $file_path, $md5 );
 	}
 
 	public function delete_file_index( $file_path ) {

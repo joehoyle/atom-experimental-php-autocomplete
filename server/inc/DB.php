@@ -56,7 +56,11 @@ class DB {
 			'return_types'     => PDO::PARAM_STR,
 			'parameters'       => PDO::PARAM_STR,
 			'access'           => PDO::PARAM_STR,
-			'is_static'        => PDO::PARAM_INT
+			'is_static'        => PDO::PARAM_INT,
+		),
+		'files' => array(
+			'file'             => PDO::PARAM_STR,
+			'hash'             => PDO::PARAM_STR,
 		),
 	);
 
@@ -122,6 +126,15 @@ class DB {
 		) );
 	}
 
+	public function store_file( $file, $hash ) {
+		var_dump($file);
+		var_dump($hash);
+		$this->store_model( 'files', array(
+			'file'             => $file,
+			'hash'             => $hash,
+		) );
+	}
+
 	public function store_class( Node\Stmt\Class_ $class ) {
 
 		if ( $class->extends ) {
@@ -183,8 +196,8 @@ class DB {
 	protected function store_model( $model, $data ) {
 		$model_data = $this->models[ $model ];
 		$statement = $this->pdo->prepare( $query = "INSERT INTO " . $model . " ( " . implode( ', ', array_keys( $model_data ) ) . " ) VALUES ( " . implode( ', ', array_map( function($m){return ':'.$m;}, array_keys( $model_data ) ) ) . " )" );
-		foreach ( $data as $key => $value ) {
-			$statement->bindParam( ':' . $key, $f = $value, $model_data[ $key ] );
+		foreach ( $data as $key => &$value ) {
+			$statement->bindParam( ':' . $key, $value, $model_data[ $key ] );
 		}
 		$statement->execute();
 	}
@@ -254,7 +267,7 @@ class DB {
 			'file'        => $this->_current_file,
 			'line'        => $constant->getLine(),
 			'type'        => $this->get_type_for_node( $constant->consts[0]->value ),
-			'description' => $desciption,
+			'description' => $description,
 		) );
 	}
 
@@ -363,6 +376,10 @@ class DB {
 			}
 		}
 		return $all;
+	}
+
+	public function get_file( $file ) {
+		$this->get_rows( 'files', array( 'file' => $file ) );
 	}
 
 	public function delete_file( $file_path ) {
